@@ -1,0 +1,13 @@
+[package]
+name = "feather-joplin-bridge"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+reqwest = { version = "0.11.14", features = ["blocking", "json"] }
+
+serde_json = "1.0.93"
+serde = { version = "1.0.100", default-features = false, features = ["derive"] }
+
+log = "0.4.0"
+env_logger = "0.10.0"
