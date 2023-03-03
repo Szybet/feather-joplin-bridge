@@ -18,9 +18,9 @@ fn main() -> ExitCode {
     let path_int = 3;
 
 
-    let joplin = JoplinData::new(args[1].clone());
+    let joplin = JoplinData::new(args[1].clone()).unwrap();
 
-    let foldersRoot: FoldersPure = joplin.lookup_folder(args[path_int].clone()).unwrap();
+    let foldersRoot = joplin.lookup_folder(args[path_int].clone()).unwrap();
 
 
     ExitCode::SUCCESS

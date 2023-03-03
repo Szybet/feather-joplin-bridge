@@ -1,5 +1,3 @@
-use reqwest::blocking;
-use reqwest::Response;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::error::*;
@@ -19,11 +17,7 @@ impl Error for MyError {}
 
 //
 
-pub struct JoplinData {
-    token_string: String,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct FoldersArray {
     id: String,
     parent_id: String,
@@ -36,9 +30,9 @@ pub struct FoldersGet {
     has_more: bool,
 }
 
-#[derive(Debug)]
-pub struct FoldersPure {
-    Folders: Vec<FoldersArray>,
+pub struct JoplinData {
+    token_string: String,
+    dir_list: Vec<FoldersArray>, // We can't request only specific dirs so we need to do this, so save it for later
 }
 
 impl JoplinData {
@@ -62,12 +56,25 @@ impl JoplinData {
         Result::Ok(())
     }
 
-    pub fn new(provided_token: String) -> JoplinData {
-        let new = JoplinData {
+    pub fn new(provided_token: String) -> Result<JoplinData, Box<dyn Error>> {
+        let mut new = JoplinData {
             token_string: format!("?token={}", provided_token),
+            dir_list: Vec::new(),
         };
         new.ping().unwrap();
-        new
+
+        let mut request = format!("http://127.0.0.1:41184/{}{}", "/folders", &new.token_string);
+        let mut responses = &new.request_pages_iterate(&mut request).unwrap();
+
+        for response in responses {
+            let mut page: FoldersGet = serde_json::from_str(response.as_str())?;
+            new.dir_list.append(&mut page.items);
+        }
+
+        debug!("Got all folders: {:#?}", new.dir_list);
+        debug!("There are {} folders in total", new.dir_list.len());
+
+        Result::Ok(new)
     }
 
     pub fn add_page(&self, page: i32, request: &mut String) -> String {
@@ -103,76 +110,32 @@ impl JoplinData {
         Result::Ok(responses)
     }
 
-    pub fn lookup_folder(&self, folder_path: String) -> Result<FoldersPure, Box<dyn Error>> {
-        let mut search_for: bool = false;
-        if folder_path == "/" {
-            debug!("Root directory selected");
+    pub fn look_for_children(&self, folder_storage: &mut Vec<FoldersArray>, root_id: String) {
+        for folder in &self.dir_list {
+            if folder.parent_id == root_id {
+                folder_storage.push(folder.to_owned().clone());
+            }
+        }
+    }
+
+    pub fn lookup_folder(&self, folder_path: String) -> Result<Vec<FoldersArray>, Box<dyn Error>> {
+        // We also push here the root that was asked for
+        let mut folders_children: Vec<FoldersArray> = Vec::new();
+
+        let root_index_option = self.dir_list.iter().position(|x| x.title == folder_path);
+        
+        if root_index_option.is_some() {
+            let index = root_index_option.unwrap();
+            let root = &self.dir_list[index];
+            folders_children.push(root.to_owned().clone());
+
+
         } else {
-            debug!(
-                "Selected directory: {}. We will need to search for it's id",
-                folder_path
-            );
-            search_for = true;
+            return Err(Box::new(MyError("Couldn't found requested folder name".into())));
         }
 
-        let mut request = format!("http://127.0.0.1:41184/{}{}", "/folders", self.token_string);
-        let mut responses = self.request_pages_iterate(&mut request).unwrap();
 
-        // uh, to create folders from first page
-        let first_page: FoldersGet = serde_json::from_str(responses.remove(0).as_str())?;
-        let mut folders = FoldersPure {
-            Folders: first_page.items,
-        };
 
-        for response in responses {
-            let mut page: FoldersGet = serde_json::from_str(response.as_str())?;
-            folders.Folders.append(&mut page.items);
-        }
-
-        debug!("Root: Got folders: {:#?}", folders);
-        debug!("Root: There are {} folders", folders.Folders.len());
-
-        // Actual searching for the sub folder
-        if search_for {
-            let mut id = String::new();
-            let mut count = 0;
-            for one_folder in folders.Folders.into_iter() {
-                if one_folder.title == folder_path {
-                    count += 1;
-                    id = one_folder.id;
-                }
-            }
-            if count == 0 {
-                error!("There is no such folder {}", folder_path);
-                return Err(Box::new(MyError("Folder doesn't exist".into())));
-
-            } else if count > 1 {
-                warn!("There are more directories of the same name");
-                return Err(Box::new(MyError("Duplicate name".into())));
-            } else {
-                let mut request_id = format!(
-                    "http://127.0.0.1:41184/folders/:{}{}",
-                    id, self.token_string
-                );
-                debug!("Request of specific folder: {}", request_id);
-                let mut responses = self.request_pages_iterate(&mut request_id).unwrap();
-
-                let first_page: FoldersGet = serde_json::from_str(responses.remove(0).as_str())?;
-                let mut folders_id = FoldersPure {
-                    Folders: first_page.items,
-                };
-
-                for response in responses {
-                    let mut page: FoldersGet = serde_json::from_str(response.as_str())?;
-                    folders_id.Folders.append(&mut page.items);
-                }
-
-                debug!("Inside: Got folders: {:#?}", folders_id);
-                debug!("Inside: There are {} folders", folders_id.Folders.len());
-
-                return Result::Ok(folders_id);
-            }
-        }
-        Result::Ok(folders)
+        Result::Ok(folders_children)
     }
 }
