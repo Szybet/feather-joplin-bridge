@@ -11,3 +11,6 @@ serde = { version = "1.0.100", default-features = false, features = ["derive"] }
 
 log = "0.4.0"
 env_logger = "0.10.0"
+pandoc = "0.8.10"
+rand = "0.8.5"
+quick-xml = { version = "0.27.1", features = ["serialize", "overlapped-lists", "serde-types"] }

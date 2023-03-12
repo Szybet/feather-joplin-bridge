@@ -2,6 +2,9 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::error::*;
 use std::fmt;
+use std::io::Write;
+
+use crate::pandoc::write_debug_file;
 
 // https://stackoverflow.com/questions/51550167/how-to-manually-return-a-result-boxdyn-error
 #[derive(Debug)]
@@ -17,22 +20,37 @@ impl Error for MyError {}
 
 //
 
+// The same as Folders, but to avoid confusing
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct NotesArray {
+    pub id: String,
+    pub parent_id: String,
+    pub title: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct NotesGet {
+    pub items: Vec<NotesArray>,
+    pub has_more: bool,
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct FoldersArray {
-    id: String,
-    parent_id: String,
-    title: String,
+    pub id: String,
+    pub parent_id: String,
+    pub title: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct FoldersGet {
-    items: Vec<FoldersArray>,
-    has_more: bool,
+    pub items: Vec<FoldersArray>,
+    pub has_more: bool,
 }
 
 pub struct JoplinData {
-    token_string: String,
-    dir_list: Vec<FoldersArray>, // We can't request only specific dirs so we need to do this, so save it for later
+    pub token_string: String,
+    pub dir_list: Vec<FoldersArray>, // We can't request only specific dirs so we need to do this, so save it for later
+    pub notes_list: Vec<NotesArray>, // Searching doesn't work, some weird token error, but it's there
 }
 
 impl JoplinData {
@@ -60,11 +78,12 @@ impl JoplinData {
         let mut new = JoplinData {
             token_string: format!("?token={}", provided_token),
             dir_list: Vec::new(),
+            notes_list: Vec::new(),
         };
         new.ping().unwrap();
 
         let mut request = format!("http://127.0.0.1:41184/{}{}", "/folders", &new.token_string);
-        let mut responses = &new.request_pages_iterate(&mut request).unwrap();
+        let responses = &new.request_pages_iterate(&mut request).unwrap();
 
         for response in responses {
             let mut page: FoldersGet = serde_json::from_str(response.as_str())?;
@@ -73,6 +92,16 @@ impl JoplinData {
 
         debug!("Got all folders: {:#?}", new.dir_list);
         debug!("There are {} folders in total", new.dir_list.len());
+
+        let mut request = format!("http://127.0.0.1:41184/{}{}", "/notes", &new.token_string);
+        let responses = &new.request_pages_iterate(&mut request).unwrap();
+
+        for response in responses {
+            let mut page: NotesGet = serde_json::from_str(response.as_str())?;
+            new.notes_list.append(&mut page.items);
+        }
+
+        debug!("There are {} notes in total", new.notes_list.len());
 
         Result::Ok(new)
     }
@@ -110,10 +139,15 @@ impl JoplinData {
         Result::Ok(responses)
     }
 
-    pub fn look_for_children(&self, folder_storage: &mut Vec<FoldersArray>, root_id: String) {
+    pub fn look_for_children_folders(
+        &self,
+        folder_storage: &mut Vec<FoldersArray>,
+        root_id: String,
+    ) {
         for folder in &self.dir_list {
             if folder.parent_id == root_id {
                 folder_storage.push(folder.to_owned().clone());
+                self.look_for_children_folders(folder_storage, folder.id.clone());
             }
         }
     }
@@ -123,19 +157,59 @@ impl JoplinData {
         let mut folders_children: Vec<FoldersArray> = Vec::new();
 
         let root_index_option = self.dir_list.iter().position(|x| x.title == folder_path);
-        
+
         if root_index_option.is_some() {
             let index = root_index_option.unwrap();
             let root = &self.dir_list[index];
-            folders_children.push(root.to_owned().clone());
+            folders_children.push(root.to_owned());
+            self.look_for_children_folders(&mut folders_children, root.id.clone());
 
-
+            debug!(
+                "For root: {} found children: {:#?}. There are {} items",
+                root.title,
+                folders_children,
+                folders_children.len()
+            );
         } else {
-            return Err(Box::new(MyError("Couldn't found requested folder name".into())));
+            return Err(Box::new(MyError(
+                "Couldn't found requested folder name".into(),
+            )));
         }
 
-
-
         Result::Ok(folders_children)
+    }
+
+    pub fn get_notes_of_folder(
+        &mut self,
+        folder_id: String,
+    ) -> Result<Vec<NotesArray>, Box<dyn Error>> {
+        let mut notes: Vec<NotesArray> = Vec::new();
+        for note in &self.notes_list {
+            if note.parent_id == folder_id {
+                notes.push(note.clone());
+            }
+        }
+
+        debug!("Found {} notes", notes.len());
+
+        Ok(notes)
+    }
+
+    pub fn get_note_body(&self, note_id: &str) -> Result<String, Box<dyn Error>> {
+        let request = format!(
+            "http://127.0.0.1:41184/notes/{}{}&fields=body",
+            note_id, self.token_string
+        );
+
+        debug!("get_note_body request: {}", request);
+
+        let resp = reqwest::blocking::get(request)?;
+        let v: Value = serde_json::from_str(&resp.text().unwrap())?;
+
+        let str = v["body"].as_str().unwrap();
+
+        write_debug_file("", str.to_string());
+        
+        Ok(str.to_string())
     }
 }
