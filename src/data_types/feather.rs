@@ -24,7 +24,8 @@ pub struct Node {
     name: String,
     #[serde(rename = "$text")]
     text: String,
-    node: Vec<Node>,
+    #[serde(flatten)] // Why
+    node: Option<Vec<Node>>, // WHYYYY
 }
 
 #[derive(Debug, PartialEq, Default, Deserialize)]
