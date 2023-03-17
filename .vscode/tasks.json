@@ -6,12 +6,12 @@
         {
             "label": "Debug",
             "type": "shell",
-            "command": "RUST_LOG=debug cargo run f7367f972d8d645a85c1ede0a9daabb5e1a43637570437b9289ff4cba45b6066c7a0072eabd70eab7e7d471338f5786d3b425e108f9b6149b60e0f105ab2525e Feather-Nodes-example.fnx School"
+            "command": "RUST_LOG=debug cargo run f7367f972d8d645a85c1ede0a9daabb5e1a43637570437b9289ff4cba45b6066c7a0072eabd70eab7e7d471338f5786d3b425e108f9b6149b60e0f105ab2525e Feather-Nodes-example.fnx 4c6d7baa06af4166b7b7c05b381874f4"
         },
         {
             "label": "Info",
             "type": "shell",
-            "command": "RUST_LOG=info cargo run -- releasef7367f972d8d645a85c1ede0a9daabb5e1a43637570437b9289ff4cba45b6066c7a0072eabd70eab7e7d471338f5786d3b425e108f9b6149b60e0f105ab2525e Feather-Nodes-example.fnx /"
+            "command": "RUST_LOG=info cargo run -- releasef7367f972d8d645a85c1ede0a9daabb5e1a43637570437b9289ff4cba45b6066c7a0072eabd70eab7e7d471338f5786d3b425e108f9b6149b60e0f105ab2525e Feather-Nodes-example.fnx 4c6d7baa06af4166b7b7c05b381874f4"
         },
         {
             "label": "Clean tests",

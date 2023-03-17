@@ -2,10 +2,16 @@ use quick_xml::de::from_str;
 use quick_xml::events::Event;
 use quick_xml::reader::Reader;
 use serde::Deserialize;
+use serde::Serialize;
 use std::error::*;
 use std::fmt;
 use std::fs::File;
 use std::io::BufReader;
+use std::process::exit;
+use std::process::ExitCode;
+
+
+use quick_xml::se::to_string;
 // https://stackoverflow.com/questions/51550167/how-to-manually-return-a-result-boxdyn-error
 #[derive(Debug)]
 struct MyError(String);
@@ -18,7 +24,7 @@ impl fmt::Display for MyError {
 
 impl Error for MyError {}
 
-#[derive(Debug, PartialEq, Default, Deserialize)]
+#[derive(Debug, Default, Serialize, Deserialize, PartialEq)]
 pub struct Node {
     #[serde(rename = "@name")]
     name: String,
@@ -28,24 +34,36 @@ pub struct Node {
     node: Option<Vec<Node>>, // WHYYYY
 }
 
-#[derive(Debug, PartialEq, Default, Deserialize)]
+#[derive(Debug, Default, Serialize, Deserialize, PartialEq)]
 pub struct Feathernotes {
     node: Vec<Node>,
 }
 
+#[derive(Debug, Default, Serialize, Deserialize, PartialEq)]
 pub struct FeatherStruct {
-    reader: Reader<BufReader<File>>,
     struct_xml: Feathernotes,
 }
 
 impl FeatherStruct {
-    pub fn new(provided_path: String) -> Result<FeatherStruct, Box<dyn Error>> {
+    pub fn new() -> Result<FeatherStruct, Box<dyn Error>> {
+        let feather_inner = Feathernotes {
+            node: Vec::new(),
+        };
+
+        let feather = FeatherStruct {
+            struct_xml: feather_inner,
+        };
+
+        return Ok(feather);
+    }
+    pub fn read(provided_path: String) -> Result<FeatherStruct, Box<dyn Error>> {
         debug!("Provided path for feather XML file: {}", provided_path);
-        let mut reader_new = Reader::from_file(provided_path.clone()).unwrap();
-        reader_new.trim_text(true);
+
 
         if log_enabled!(log::Level::Debug) {
             let mut buf = Vec::new();
+            let mut reader_new = Reader::from_file(provided_path.clone()).unwrap();
+            reader_new.trim_text(true);
             // Debug thing
             loop {
                 match reader_new.read_event_into(&mut buf) {
@@ -76,10 +94,42 @@ impl FeatherStruct {
 
         debug!("Parsed struct: {:#?}", feathernotes);
 
+
         let new_feather = FeatherStruct {
-            reader: reader_new,
             struct_xml: feathernotes,
         };
         Ok(new_feather)
+    }
+    // If path doesn't exist, throw an error
+    pub fn create_node_at_path(&mut self, title: &str, body: &str, path: Vec<String>) {
+        let mut path_changing = &self.struct_xml.node;
+
+        let last_name_tmpvec = path.clone();
+        let last_name = last_name_tmpvec.last().unwrap();
+
+        for path_name in path {
+            if(&path_name != last_name) {
+                for node in path_changing {
+                    if node.name == path_name {
+                        match &node.node {
+                            Some(x) => {
+                                path_changing = x;
+                                break;
+                            }
+                            None => {
+                                error!("Node of name {} doesn't have a any subfolders", node.name);
+                                // TODO
+                                exit(-1);
+                                
+                            }
+                        }
+                    }
+                }
+            } else {
+                
+            }
+            
+
+        }
     }
 }

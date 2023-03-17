@@ -23,11 +23,10 @@ pub fn convert_md_to_html(str: String) -> String {
     String::new()
 }
 
-// TODO: &lt;
 pub fn convert_html_to_md(str: String) -> String {
     let mut pandoc = pandoc::new();
 
-    pandoc.set_input(InputKind::Pipe(str));
+    pandoc.set_input(InputKind::Pipe(str.replace("&lt;", "<")));
     pandoc.set_output(OutputKind::Pipe);
     pandoc.set_output_format(pandoc::OutputFormat::Commonmark , Vec::new());
     pandoc.set_input_format(pandoc::InputFormat::Html, Vec::new());

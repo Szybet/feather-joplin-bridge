@@ -152,11 +152,11 @@ impl JoplinData {
         }
     }
 
-    pub fn lookup_folder(&self, folder_path: String) -> Result<Vec<FoldersArray>, Box<dyn Error>> {
+    pub fn lookup_folder(&self, folder_id: String) -> Result<Vec<FoldersArray>, Box<dyn Error>> {
         // We also push here the root that was asked for
         let mut folders_children: Vec<FoldersArray> = Vec::new();
 
-        let root_index_option = self.dir_list.iter().position(|x| x.title == folder_path);
+        let root_index_option = self.dir_list.iter().position(|x| x.id == folder_id);
 
         if root_index_option.is_some() {
             let index = root_index_option.unwrap();
@@ -181,7 +181,7 @@ impl JoplinData {
 
     pub fn get_notes_of_folder(
         &mut self,
-        folder_id: String,
+        folder_id: &str,
     ) -> Result<Vec<NotesArray>, Box<dyn Error>> {
         let mut notes: Vec<NotesArray> = Vec::new();
         for note in &self.notes_list {
