@@ -11,7 +11,6 @@ pub fn overwrite_joplin_to_feathernotes(
     for folder in joplin_folders {
         let notes = joplin_struct.get_notes_of_folder(&folder.id).unwrap();
         debug!("Got {} notes of folder {}", notes.len(), folder.title);
-        
     }
 
     output_string
