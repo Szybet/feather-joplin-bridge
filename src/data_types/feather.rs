@@ -57,11 +57,11 @@ impl FeatherStruct {
     }
 
     pub fn new() -> Result<FeatherStruct, Box<dyn Error>> {
-        let feather_inner = feathernotes { 
+        let feather_inner = feathernotes {
             node: Vec::new(),
             txtfont: String::from("Monospace,11,-1,5,400,0,0,0,0,0,0,0,0,0,0,1"),
             nodefont: String::from("Cantarell,11,-1,5,400,0,0,0,0,0,0,0,0,0,0,1"),
-         };
+        };
 
         let feather = FeatherStruct {
             struct_xml: feather_inner,
@@ -112,80 +112,194 @@ impl FeatherStruct {
 
         Ok(new_feather)
     }
-
-
 }
 
-    // If path doesn't exist, throw an error
-    pub fn create_node_at_path(
-        currect_node: &mut Vec<Node>,
-        title: &str,
-        body: &str,
-        path: Vec<&str>,
-        path_progress: Option<usize>, // if found, this gives the next index to look for
-        children_count: usize,        // 0 is root, other are children, this gets bigger and bigger
-    ) -> Result<(), Box<dyn Error>> {
-        let last_name_tmpvec = path.clone();
-        let last_name = last_name_tmpvec.last().unwrap();
+// If path doesn't exist, throw an error
+pub fn create_node_at_path(
+    currect_node: &mut Vec<Node>,
+    title: &str,
+    body: &str,
+    path: Vec<String>,
+    path_progress: Option<usize>, // if found, this gives the next index to look for
+    children_count: usize,        // 0 is root, other are children, this gets bigger and bigger
+) -> Result<(), Box<dyn Error>> {
+    if children_count == 0 {
+        debug!(
+            "Trying to write {} at {:?} with current node: {:?}",
+            title, path, currect_node
+        );
+    }
 
-        let mut path_name_index = 0;
+    let last_name_tmpvec = path.clone();
 
-        match path_progress {
-            Some(x) => {
-                path_name_index = x;
-            }
-            None => {
-                debug!("path_progress is root");
-            },
+    let mut last_name: String = String::new();
+
+    // Check if writing at root is needed, then skip the rest
+    match last_name_tmpvec.last() {
+        Some(x) => {
+            last_name = x.clone();
         }
-
-        if &path[path_name_index] != last_name {
-            for node in currect_node.iter_mut() {
-                if node.name == path[path_name_index] {
-                    if !node.node.is_empty() {
-                        let result_child = create_node_at_path(
-                            &mut node.node,
-                            title,
-                            body,
-                            path,
-                            Some(path_name_index + 1),
-                            children_count + 1,
-                        );
-                        match result_child {
-                            Ok(_) => {
-                                return Ok(());
-                            }
-                            Err(_) => {
-                                if children_count == 0 {
-                                    debug!("What?????");
-                                }
-                                return Err(Box::new(MyError(String::new())));
-                            }
-                        }
-                    } else {
-                        let err =
-                            format!("Node of name {} doesn't have a any subfolders", node.name);
-                        //return Err(Box::new(MyError(err)));
-                    }
-                }
-            }
-        } else {
-            debug!("Found dir?");
+        None => {
+            debug!("Writing at root of feather file");
             let new_node = Node {
                 name: title.to_string(),
                 text: body.to_string(),
                 node: Vec::new(),
             };
-            currect_node.push(new_node);
-            debug!("Children number {} has written to folder", children_count);
+
+            let mut duplicate = false;
+            for item in currect_node.iter_mut() {
+                if item.name == new_node.name {
+                    duplicate = true;
+                }
+            }
+
+            if !duplicate {
+                currect_node.push(new_node);
+                debug!(
+                    "Children number {} has written note of title {}",
+                    children_count,
+                    title.to_string()
+                );
+            } else {
+                debug!("Avoiding writing duplicate of title: {}", title.to_string());
+            }
+
             return Ok(());
         }
+    }
 
-        if children_count == 0 {
-            return Err(Box::new(MyError(
-                "Couldn't find requested folder name".into(),
-            )));
+    let mut path_name_index = 0;
+
+    match path_progress {
+        Some(x) => {
+            path_name_index = x;
+        }
+        None => {
+            debug!("path_progress is root");
+        }
+    }
+
+    // If its in root, first go INTO this one node. thats why path_name_index != 0
+    if path[path_name_index] != last_name {
+        for node in currect_node.iter_mut() {
+            if node.name == path[path_name_index] {
+                debug!(
+                    "String \"{}\" IS equal \"{}\"? for children {}",
+                    node.name, path[path_name_index], children_count
+                );
+                if !node.node.is_empty() {
+                    debug!("Running a child");
+                    let result_child = create_node_at_path(
+                        &mut node.node,
+                        title,
+                        body,
+                        path,
+                        Some(path_name_index + 1),
+                        children_count + 1,
+                    );
+                    match result_child {
+                        Ok(_) => {
+                            return Ok(());
+                        }
+                        Err(_) => {
+                            if children_count == 0 {
+                                debug!("What?????");
+                            }
+                            return Err(Box::new(MyError(String::new())));
+                        }
+                    }
+                } else {
+                    let err = format!("Node of name {} doesn't have a any subfolders", node.name);
+                    debug!("{}", &err);
+                    if &node.name == path.last().unwrap() {
+                        debug!("Testing!");
+                        let new_node = Node {
+                            name: title.to_string(),
+                            text: body.to_string(),
+                            node: Vec::new(),
+                        };
+                        node.node.push(new_node);
+                        return Ok(());
+                    }
+                    // Nope, acceptable. another child will find it... propably
+                    //return Err(Box::new(MyError(err)));
+                }
+            } else {
+                debug!(
+                    "String \"{}\" is NOT equal \"{}\"? for children {}",
+                    node.name, path[path_name_index], children_count
+                );
+            }
+        }
+    } else {
+        debug!(
+            "Found dir?, path[path_name_index]: {}, last_name: {}",
+            path[path_name_index], last_name
+        );
+
+        if path[path_name_index] == last_name {
+            debug!("Edge case?");
+            for node in currect_node.iter_mut() {
+                if node.name == path[path_name_index] {
+                    let new_node = Node {
+                        name: title.to_string(),
+                        text: body.to_string(),
+                        node: Vec::new(),
+                    };
+
+                    let mut duplicate = false;
+                    for item in node.node.iter_mut() {
+                        if item.name == new_node.name {
+                            duplicate = true;
+                        } else {
+                            debug!(
+                                "TEST: item.name: {} and new_node.name: {} are not equal",
+                                item.name, new_node.name
+                            );
+                        }
+                    }
+                    if !duplicate {
+                        node.node.push(new_node);
+                    } else {
+                        debug!("Avoiding writing duplicate of title: {}", title.to_string());
+                    }
+                    return Ok(());
+                }
+            }
         }
 
-        return Err(Box::new(MyError(String::new())));
+        let new_node = Node {
+            name: title.to_string(),
+            text: body.to_string(),
+            node: Vec::new(),
+        };
+
+        let mut duplicate = false;
+        for item in currect_node.iter_mut() {
+            if item.name == new_node.name {
+                duplicate = true;
+            }
+        }
+
+        if !duplicate {
+            currect_node.push(new_node);
+            debug!(
+                "Children number {} has written note of title {}",
+                children_count,
+                title.to_string()
+            );
+        } else {
+            debug!("Avoiding writing duplicate of title: {}", title.to_string());
+        }
+        return Ok(());
     }
+
+    if children_count == 0 {
+        return Err(Box::new(MyError(format!(
+            "Couldn't find requested folder name, {:?}",
+            path
+        ))));
+    }
+    Err(Box::new(MyError(String::new())))
+}

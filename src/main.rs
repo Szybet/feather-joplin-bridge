@@ -27,12 +27,12 @@ fn main() -> ExitCode {
     let joplin_arg = 1;
     let feather_arg = 2;
     let id_arg = 3;
-    /*
 
     let mut joplin = JoplinData::new(args[1].clone()).unwrap();
+    //let _folders_root = joplin.lookup_folder(args[id_arg].clone()).unwrap();
+    let _folders_root = joplin.dir_list.clone();
 
-    let _folders_root = joplin.lookup_folder(args[path_int].clone()).unwrap();
-
+    /*
     debug!(
         "Id of folder {} is {}",
         _folders_root.first().unwrap().title,
@@ -42,11 +42,14 @@ fn main() -> ExitCode {
 
     let _note_md = joplin.get_note_body("54aac932ffc54e219698de18fdee0f37").unwrap();
     */
+
+    //joplin.get_path_folder("eb4a68b569df4d758ac9890069ee15bb");
+
     let mut feather = FeatherStruct::read(args[feather_arg].clone()).unwrap();
     //feather.log_feather("Parsed_xml.fnx");
 
+    /*
     let vec = vec!["Node 2", "Node 2.1", "Node 2.1.1"];
-
     let node_vec = &mut feather.struct_xml.node;
     create_node_at_path(
         node_vec,
@@ -57,16 +60,15 @@ fn main() -> ExitCode {
         0,
     )
     .unwrap();
-    feather.log_feather("");
-
-    /*
-        overwrite_joplin_to_feathernotes(
-            feather,
-            joplin,
-            _folders_root,
-            "4c6d7baa06af4166b7b7c05b381874f4",
-        );
+    //feather.log_feather("");
     */
+    
+    overwrite_joplin_to_feathernotes(
+        feather,
+        joplin,
+        _folders_root,
+        "4c6d7baa06af4166b7b7c05b381874f4",
+    );
 
     ExitCode::SUCCESS
 }

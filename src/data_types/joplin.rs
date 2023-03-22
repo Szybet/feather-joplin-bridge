@@ -3,6 +3,7 @@ use serde_json::Value;
 use std::error::*;
 use std::fmt;
 use std::io::Write;
+use std::path;
 
 use crate::pandoc::write_debug_file;
 
@@ -51,6 +52,12 @@ pub struct JoplinData {
     pub token_string: String,
     pub dir_list: Vec<FoldersArray>, // We can't request only specific dirs so we need to do this, so save it for later
     pub notes_list: Vec<NotesArray>, // Searching doesn't work, some weird token error, but it's there
+}
+
+#[derive(Debug)]
+pub struct MinimumFolder {
+    pub title: String,
+    pub id: String,
 }
 
 impl JoplinData {
@@ -209,7 +216,60 @@ impl JoplinData {
         let str = v["body"].as_str().unwrap();
 
         write_debug_file("", str.to_string());
-        
+
         Ok(str.to_string())
+    }
+
+    // http://127.0.0.1:41184/folders/12b29e02391b48a29cf730ddee8b01ff?token=f7367f972d8d645a85c1ede0a9daabb5e1a43637570437b9289ff4cba45b6066c7a0072eabd70eab7e7d471338f5786d3b425e108f9b6149b60e0f105ab2525e
+    pub fn get_path_folder(&self, folder_id: &str) -> Result<Vec<MinimumFolder>, Box<dyn Error>> {
+        let mut path_not_inversed: Vec<MinimumFolder> = Vec::new();
+        let mut id_to_look_for = folder_id.to_string();
+        loop {
+            let request = format!(
+                "http://127.0.0.1:41184/folders/{}{}",
+                id_to_look_for, self.token_string
+            );
+
+            debug!("get_path_folder request: {}", request);
+
+            let resp = reqwest::blocking::get(request)?;
+            let v: Value = serde_json::from_str(&resp.text().unwrap())?;
+
+            let parent_id = v["parent_id"].as_str().unwrap();
+
+            if parent_id.is_empty() {
+                let folder = MinimumFolder {
+                    title: v["title"].as_str().unwrap().to_string(),
+                    id: v["id"].as_str().unwrap().to_string(),
+                };
+                path_not_inversed.push(folder);
+                break;
+            } else {
+                let folder = MinimumFolder {
+                    title: v["title"].as_str().unwrap().to_string(),
+                    id: v["id"].as_str().unwrap().to_string(),
+                };
+                path_not_inversed.push(folder);
+                id_to_look_for = parent_id.to_string();
+            }
+        }
+
+        let path_inversed: Vec<MinimumFolder> = path_not_inversed.into_iter().rev().collect();
+        debug!("path_inversed: {:#?}", path_inversed);
+
+        Ok(path_inversed)
+    }
+
+    pub fn get_parent_of_note(&self, note_id: String) -> Result<String, Box<dyn Error>> {
+        let request = format!(
+            "http://127.0.0.1:41184/notes/{}/{}",
+            note_id, self.token_string
+        );
+        debug!("get_parent_of_note request: {}", request);
+
+        let resp = reqwest::blocking::get(request)?;
+        let v: Value = serde_json::from_str(&resp.text().unwrap())?;
+
+        Ok(v["parent_id"].as_str().unwrap().to_string())
     }
 }
