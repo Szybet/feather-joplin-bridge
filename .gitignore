@@ -1,3 +1,4 @@
 /target
 convert_tests/*
 !convert_tests/.gitkeep
+Cargo.lock

@@ -1,4 +1,4 @@
-use crate::pandoc::write_debug_file;
+use crate::pandoc::*;
 use quick_xml::de::from_str;
 use quick_xml::events::Event;
 use quick_xml::reader::Reader;
@@ -48,12 +48,15 @@ pub struct FeatherStruct {
 }
 
 impl FeatherStruct {
-    pub fn log_feather(&self, title: &str) {
+    pub fn write_file(&self, title: &str) {
+        let struct_copy = self.struct_xml.clone();
+        let mut xml = to_string(&struct_copy).unwrap();
+        xml = final_touches_xml(xml);
+
         if log_enabled!(log::Level::Debug) {
-            let struct_copy = self.struct_xml.clone();
-            let xml = to_string(&struct_copy).unwrap();
-            write_debug_file(title, xml);
+            write_debug_file(title, xml, ".fnx");
         }
+        // TODO: normal write
     }
 
     pub fn new() -> Result<FeatherStruct, Box<dyn Error>> {

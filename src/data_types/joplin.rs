@@ -5,6 +5,7 @@ use std::fmt;
 use std::io::Write;
 use std::path;
 
+use crate::pandoc::repair_md_katex;
 use crate::pandoc::write_debug_file;
 
 // https://stackoverflow.com/questions/51550167/how-to-manually-return-a-result-boxdyn-error
@@ -213,11 +214,13 @@ impl JoplinData {
         let resp = reqwest::blocking::get(request)?;
         let v: Value = serde_json::from_str(&resp.text().unwrap())?;
 
-        let str = v["body"].as_str().unwrap();
+        let mut str = v["body"].as_str().unwrap().to_string();
 
-        write_debug_file("", str.to_string());
+        str = repair_md_katex(str);
 
-        Ok(str.to_string())
+        write_debug_file("", str.to_string(), ".md");
+
+        Ok(str)
     }
 
     // http://127.0.0.1:41184/folders/12b29e02391b48a29cf730ddee8b01ff?token=f7367f972d8d645a85c1ede0a9daabb5e1a43637570437b9289ff4cba45b6066c7a0072eabd70eab7e7d471338f5786d3b425e108f9b6149b60e0f105ab2525e

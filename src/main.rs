@@ -28,9 +28,9 @@ fn main() -> ExitCode {
     let feather_arg = 2;
     let id_arg = 3;
 
-    let mut joplin = JoplinData::new(args[1].clone()).unwrap();
-    //let _folders_root = joplin.lookup_folder(args[id_arg].clone()).unwrap();
-    let _folders_root = joplin.dir_list.clone();
+    let mut joplin = JoplinData::new(args[joplin_arg].clone()).unwrap();
+    let _folders_root = joplin.lookup_folder(args[id_arg].clone()).unwrap();
+    //let _folders_root = joplin.dir_list.clone(); // For root
 
     /*
     debug!(
