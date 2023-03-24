@@ -80,5 +80,5 @@ pub fn overwrite_joplin_to_feathernotes(
             .unwrap();
         }
     }
-    feather_file.write_file("");
+    feather_file.write_file("feather_file");
 }

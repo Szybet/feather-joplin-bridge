@@ -49,13 +49,15 @@ pub struct FeatherStruct {
 
 impl FeatherStruct {
     pub fn write_file(&self, title: &str) {
+        info!("Outputting feather file");
+
         let struct_copy = self.struct_xml.clone();
         let mut xml = to_string(&struct_copy).unwrap();
         xml = final_touches_xml(xml);
 
-        if log_enabled!(log::Level::Debug) {
-            write_debug_file(title, xml, ".fnx");
-        }
+        //if log_enabled!(log::Level::Debug) {
+        write_file(title, xml, ".fnx");
+        //}
         // TODO: normal write
     }
 
@@ -127,10 +129,12 @@ pub fn create_node_at_path(
     children_count: usize,        // 0 is root, other are children, this gets bigger and bigger
 ) -> Result<(), Box<dyn Error>> {
     if children_count == 0 {
+        /* 
         debug!(
             "Trying to write {} at {:?} with current node: {:?}",
             title, path, currect_node
         );
+        */
     }
 
     let last_name_tmpvec = path.clone();

@@ -5,6 +5,7 @@ use std::fmt;
 use std::io::Write;
 use std::path;
 
+use crate::pandoc::fix_embedding_files_md;
 use crate::pandoc::repair_md_katex;
 use crate::pandoc::write_debug_file;
 
@@ -217,6 +218,7 @@ impl JoplinData {
         let mut str = v["body"].as_str().unwrap().to_string();
 
         str = repair_md_katex(str);
+        str = fix_embedding_files_md(str);
 
         write_debug_file("", str.to_string(), ".md");
 
