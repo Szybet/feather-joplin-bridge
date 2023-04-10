@@ -6,6 +6,8 @@ use serde::Deserialize;
 use serde::Serialize;
 use std::error::*;
 use std::fmt;
+use std::fs::OpenOptions;
+use std::io::Write;
 
 use quick_xml::se::to_string;
 
@@ -25,6 +27,8 @@ impl Error for MyError {}
 pub struct Node {
     #[serde(rename = "@name")]
     pub name: String,
+    #[serde(rename = "@collapse")]
+    pub collapse: Option<String>, // At default 1 to improve performance on kobos
     #[serde(rename = "$text")]
     pub text: String,
     #[serde(default)]
@@ -49,30 +53,30 @@ pub struct FeatherStruct {
 
 impl FeatherStruct {
     pub fn write_file(&self, title: &str) {
-        info!("Outputting feather file");
+        info!("Writing feather file to {}", title);
 
         let struct_copy = self.struct_xml.clone();
-        let mut xml = to_string(&struct_copy).unwrap();
-        xml = final_touches_xml(xml);
+        let xml = final_touches_xml(to_string(&struct_copy).unwrap());
 
-        //if log_enabled!(log::Level::Debug) {
-        write_file(title, xml, ".fnx");
-        //}
-        // TODO: normal write
+        let mut file = OpenOptions::new()
+        .write(true)
+        .create(true)
+        .open(title)
+        .unwrap();
+
+        file.write_all(xml.as_bytes()).unwrap();
     }
 
-    pub fn new() -> Result<FeatherStruct, Box<dyn Error>> {
+    pub fn new() -> FeatherStruct {
         let feather_inner = feathernotes {
             node: Vec::new(),
             txtfont: String::from("Monospace,11,-1,5,400,0,0,0,0,0,0,0,0,0,0,1"),
             nodefont: String::from("Cantarell,11,-1,5,400,0,0,0,0,0,0,0,0,0,0,1"),
         };
 
-        let feather = FeatherStruct {
+        FeatherStruct {
             struct_xml: feather_inner,
-        };
-
-        Ok(feather)
+        }
     }
     pub fn read(provided_path: String) -> Result<FeatherStruct, Box<dyn Error>> {
         debug!("Provided path for feather XML file: {}", provided_path);
@@ -127,7 +131,14 @@ pub fn create_node_at_path(
     path: Vec<String>,
     path_progress: Option<usize>, // if found, this gives the next index to look for
     children_count: usize,        // 0 is root, other are children, this gets bigger and bigger
+    written_dir_list_id: &mut Vec<String>,
 ) -> Result<(), Box<dyn Error>> {
+
+    if body.chars().count() == 32 && written_dir_list_id.contains(&body.to_string()) {
+        debug!("Directory exists, skipping it: \"{}\"", title);
+        return Ok(());
+    }
+
     if children_count == 0 {
         /* 
         debug!(
@@ -150,6 +161,7 @@ pub fn create_node_at_path(
             debug!("Writing at root of feather file");
             let new_node = Node {
                 name: title.to_string(),
+                collapse: Some("1".to_string()),
                 text: body.to_string(),
                 node: Vec::new(),
             };
@@ -204,6 +216,7 @@ pub fn create_node_at_path(
                         path,
                         Some(path_name_index + 1),
                         children_count + 1,
+                        written_dir_list_id
                     );
                     match result_child {
                         Ok(_) => {
@@ -223,10 +236,12 @@ pub fn create_node_at_path(
                         debug!("Testing!");
                         let new_node = Node {
                             name: title.to_string(),
+                            collapse: Some("1".to_string()),
                             text: body.to_string(),
                             node: Vec::new(),
                         };
                         node.node.push(new_node);
+                        written_dir_list_id.push(body.to_string());
                         return Ok(());
                     }
                     // Nope, acceptable. another child will find it... propably
@@ -251,6 +266,7 @@ pub fn create_node_at_path(
                 if node.name == path[path_name_index] {
                     let new_node = Node {
                         name: title.to_string(),
+                        collapse: Some("1".to_string()),
                         text: body.to_string(),
                         node: Vec::new(),
                     };
@@ -271,6 +287,7 @@ pub fn create_node_at_path(
                     } else {
                         debug!("Avoiding writing duplicate of title: {}", title.to_string());
                     }
+                    written_dir_list_id.push(body.to_string());
                     return Ok(());
                 }
             }
@@ -278,6 +295,7 @@ pub fn create_node_at_path(
 
         let new_node = Node {
             name: title.to_string(),
+            collapse: Some("1".to_string()),
             text: body.to_string(),
             node: Vec::new(),
         };
@@ -299,6 +317,7 @@ pub fn create_node_at_path(
         } else {
             debug!("Avoiding writing duplicate of title: {}", title.to_string());
         }
+        written_dir_list_id.push(body.to_string());
         return Ok(());
     }
 

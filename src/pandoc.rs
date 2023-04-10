@@ -131,7 +131,7 @@ pub fn repair_md_katex(md: String) -> String {
         str_katex = &tmp;
 
         let mut double_dollars = false;
-        if str_katex.chars().nth(0).unwrap() == '$' && str_katex.chars().nth(1).unwrap() == '$' {
+        if str_katex.starts_with('$') && str_katex.chars().nth(1).unwrap() == '$' {
             double_dollars = true;
             str_katex = str_katex.split_at(str_katex.len() - 2).0;
         } else {
@@ -182,28 +182,5 @@ pub fn fix_embedding_files_md(md: String) -> String {
         converted_md = converted_md.replace(&cap[0], &str_file);
     }
 
-
     converted_md
-}
-
-pub fn write_file(title: &str, content: String, extension: &str) {
-        let mut file_name = String::new();
-        if title.is_empty() {
-            let r: String = rand::thread_rng()
-                .sample_iter(&Alphanumeric)
-                .take(20)
-                .map(char::from)
-                .collect();
-
-            file_name = format!("convert_tests/{}", r);
-        } else {
-            file_name = format!("convert_tests/{}", title);
-        }
-
-        file_name += extension;
-
-        info!("Writing file {} with body in it", file_name);
-        std::fs::remove_file(file_name.clone()); // no unwrap
-        let mut file = std::fs::File::create(file_name).unwrap();
-        file.write_all(content.as_bytes()).unwrap();
 }

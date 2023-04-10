@@ -6,9 +6,12 @@ pub fn overwrite_joplin_to_feathernotes(
     mut feather_file: FeatherStruct,
     mut joplin_struct: JoplinData,
     joplin_folders: Vec<FoldersArray>,
-    joplin_id: &str,
+    output_file: &str,
 ) {
-    info!("STARTING overwrite_joplin_to_feathernotes");
+    info!("Writing directories");
+
+    // This exist because when writing, it tries to write every node at path, which takes time. Here it will check if it already written
+    let mut written_dir_list_id: Vec<String> = Vec::new();
 
     // Create the folder structure
     for folder in &joplin_folders {
@@ -40,6 +43,7 @@ pub fn overwrite_joplin_to_feathernotes(
                 path_item,
                 Option::None,
                 0,
+                &mut written_dir_list_id,
             )
             .unwrap();
         }
@@ -47,6 +51,8 @@ pub fn overwrite_joplin_to_feathernotes(
         //debug!("Got {} notes of folder {}", notes.len(), folder.title);
     }
     //feather_file.log_feather("");
+
+    info!("Writing notes");
 
     // Manage notes
     for folder in &joplin_folders {
@@ -76,9 +82,12 @@ pub fn overwrite_joplin_to_feathernotes(
                 path_item,
                 Option::None,
                 0,
+                &mut written_dir_list_id,
             )
             .unwrap();
+
+            info!("Done writing note: {}", note.title);
         }
     }
-    feather_file.write_file("feather_file");
+    feather_file.write_file(output_file);
 }
